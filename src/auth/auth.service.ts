@@ -11,10 +11,14 @@ import { Model } from 'mongoose';
 import * as bcrypt from 'bcryptjs';
 
 import { User } from './entities/user.entity';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateAuthDto } from './dto/update-auth.dto';
-import { LoginUserDto } from './dto/login-user-dto';
 import { JwtPayload } from './interfaces/jwt-payload';
+import { LoginResponse } from './interfaces/login-response';
+import {
+  CreateUserDto,
+  LoginUserDto,
+  RegisterUserDto,
+  UpdateAuthDto,
+} from './dto';
 
 @Injectable()
 export class AuthService {
@@ -24,7 +28,7 @@ export class AuthService {
     private jwtSvc: JwtService,
   ) {}
 
-  async login(loginUserDto: LoginUserDto): Promise<any> {
+  async login(loginUserDto: LoginUserDto): Promise<LoginResponse> {
     const { email, password } = loginUserDto;
 
     try {
@@ -54,6 +58,23 @@ export class AuthService {
     }
   }
 
+  async register(registerUserDto: RegisterUserDto): Promise<LoginResponse> {
+    try {
+      const user = await this.create(registerUserDto);
+
+      const { password: _, ...validUser } = user;
+
+      return {
+        user: validUser,
+        token: await this.getJwtToken({ id: user._id }),
+      };
+    } catch (error) {
+      throw new InternalServerErrorException(
+        `Algo extraño ha pasado, intente despues (error): ${error}`,
+      );
+    }
+  }
+
   async create(createUserDto: CreateUserDto): Promise<User> {
     console.log(createUserDto);
     try {
@@ -70,7 +91,6 @@ export class AuthService {
 
       return user;
     } catch (error) {
-      // console.error(error);
       if (error.code === 11000) {
         throw new BadRequestException(`${createUserDto.email} ya existe`);
       }
@@ -81,8 +101,15 @@ export class AuthService {
     }
   }
 
-  findAll() {
-    return `This action returns all auth`;
+  findAll(): Promise<User[]> {
+    return this.userModel.find();
+  }
+
+  async findUserById(id: string) {
+    const user = await this.userModel.findById(id);
+    const { password: _, ...userData } = user.toJSON();
+
+    return userData;
   }
 
   findOne(id: number) {
