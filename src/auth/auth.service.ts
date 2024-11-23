@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Injectable,
   InternalServerErrorException,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -116,12 +117,22 @@ export class AuthService {
     return `This action returns a #${id} auth`;
   }
 
-  update(id: number, updateAuthDto: UpdateAuthDto) {
-    return `This action updates a #${id} auth`;
+  async update(id: string, updateAuthDto: UpdateAuthDto): Promise<User> {
+    const user = await this.userModel.findByIdAndUpdate(
+      id,
+      { ...updateAuthDto },
+      { new: true },
+    );
+    if (!user)
+      throw new NotFoundException(`Usuario con id ${id} no encontrado`);
+    const { password: _, ...updatedUser } = user.toJSON();
+    return updatedUser;
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} auth`;
+  async remove(id: string): Promise<void> {
+    const user = await this.userModel.findByIdAndDelete(id);
+    if (!user)
+      throw new NotFoundException(`Usuario con id ${id} no encontrado`);
   }
 
   async getJwtToken(payload: JwtPayload) {

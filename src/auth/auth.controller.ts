@@ -3,72 +3,86 @@ import {
   Get,
   Post,
   Body,
+  UseGuards,
+  Request,
   Patch,
   Param,
   Delete,
-  UseGuards,
-  Request,
 } from '@nestjs/common';
-import { AuthService } from './auth.service';
 import {
-  CreateUserDto,
-  LoginUserDto,
-  RegisterUserDto,
-  UpdateAuthDto,
-} from './dto';
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+} from '@nestjs/swagger';
+import { AuthService } from './auth.service';
+import { CreateUserDto, LoginUserDto, UpdateAuthDto } from './dto';
 import { AuthGuard } from './guards/auth.guard';
-import { User } from './entities/user.entity';
-import { LoginResponse } from './interfaces/login-response';
 
+@ApiTags('Auth') // Categoría en Swagger
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Post()
-  create(@Body() createUserDto: CreateUserDto) {
-    return this.authService.create(createUserDto);
+  @ApiOperation({ summary: 'Registrar un nuevo usuario' })
+  @ApiResponse({ status: 201, description: 'Usuario creado exitosamente' })
+  @Post('/register')
+  register(@Body() createUserDto: CreateUserDto) {
+    return this.authService.register(createUserDto);
   }
 
+  @ApiOperation({ summary: 'Iniciar sesión' })
+  @ApiResponse({ status: 200, description: 'Sesión iniciada correctamente' })
   @Post('/login')
   login(@Body() loginUserDto: LoginUserDto) {
     return this.authService.login(loginUserDto);
   }
 
-  @Post('/register')
-  register(@Body() registerUserDto: RegisterUserDto) {
-    return this.authService.register(registerUserDto);
-  }
-
   @UseGuards(AuthGuard)
-  @Get()
-  findAll(@Request() req: Request) {
-    const user = req['user'];
+  @ApiBearerAuth() // Swagger documentará que este endpoint requiere autenticación
+  @ApiOperation({ summary: 'Obtener lista de usuarios' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de usuarios obtenida correctamente',
+  })
+  @Get('/users')
+  findAllUsers(@Request() req: any) {
     return this.authService.findAll();
   }
 
   @UseGuards(AuthGuard)
-  @Get('/check-token')
-  async checkToken(@Request() req: Request): Promise<LoginResponse> {
-    const user = req['user'] as User;
-
-    return {
-      user,
-      token: await this.authService.getJwtToken({ id: user._id }),
-    };
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Obtener un usuario por ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Usuario obtenido correctamente',
+  })
+  @Get('/users/:id')
+  findOneUser(@Param('id') id: string) {
+    return this.authService.findUserById(id);
   }
 
-  // @Get(':id')
-  // findOne(@Param('id') id: string) {
-  //   return this.authService.findOne(+id);
-  // }
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Actualizar un usuario' })
+  @ApiResponse({
+    status: 200,
+    description: 'Usuario actualizado correctamente',
+  })
+  @Patch('/users/:id')
+  updateUser(@Param('id') id: string, @Body() updateAuthDto: UpdateAuthDto) {
+    return this.authService.update(id, updateAuthDto);
+  }
 
-  // @Patch(':id')
-  // update(@Param('id') id: string, @Body() updateAuthDto: UpdateAuthDto) {
-  //   return this.authService.update(+id, updateAuthDto);
-  // }
-
-  // @Delete(':id')
-  // remove(@Param('id') id: string) {
-  //   return this.authService.remove(+id);
-  // }
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Eliminar un usuario' })
+  @ApiResponse({
+    status: 200,
+    description: 'Usuario eliminado correctamente',
+  })
+  @Delete('/users/:id')
+  removeUser(@Param('id') id: string) {
+    return this.authService.remove(id);
+  }
 }
